@@ -16,7 +16,7 @@ export const signup = async(req,res)=>{
             return res.status(400).json({error: "Username is already taken"});
         }
 
-        const existingEmail = await User.findOne({email});
+        const existingEmail = await User.findOne({email}); //this returns the document containing email, does not return the email
         if(existingEmail){
             return res.status(400).json({error: "Email is already in use"});
         }
@@ -63,5 +63,41 @@ export const signup = async(req,res)=>{
 }
 
 export const login = async(req,res)=>{
-    res.send("You have reached the login endpoint");
+    try{
+        const {username, password}=req.body;
+        const user= await User.findOne({username});
+        const isPasswordValid=bcrypt.compare(password,user?.password || ""); // the ? and the || ""  is necessary for bcrypt to run error free
+
+        if(!isPasswordValid || !user){
+            return res.status(400).json({error:"Incorrect username or password"});
+        }
+
+        generateTokenAndSetCookie(user._id,res);
+
+        res.status(200).json({
+            _id: user._id,
+            fullName: user.fullName,
+            username: user.username,
+            email: user.email,
+            followers: user.followers,
+            following: user.following,
+            profileImg: user.profileImg,
+            coverImg: user.coverImg
+        });
+    }
+    catch(error){
+        console.log("Error in login controller ", error.message)
+        res.status(500).json({error:"Internal Server Error"});
+    }
+}
+
+
+export const logout=async(req,res)=>{
+    try{
+        res.cookie("jwt","",{maxAge:0});
+        res.status(200).json({message:"Logged out succesfully"});
+    }
+    catch(error){
+        res.status(500).json({error: "Internal Server Error"});
+    }
 }
